@@ -18,6 +18,7 @@ import asyncio
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
@@ -86,13 +87,13 @@ def _parse_report(output: str) -> dict[str, Any]:
 
 async def render(backend: Any, name: str, fmt: str, svg: str) -> RenderResult:
     check_name(name)
-    brand = load_brand()
+    brand = await asyncio.to_thread(load_brand)
     width, height = format_size(fmt, brand)
     design = prepare_svg(svg, width, height)
     if is_sandbox(backend):
         result = await _render_in_sandbox(backend, name, fmt, design)
     else:
-        result = await _render_locally(name, fmt, design)
+        result = await asyncio.to_thread(_render_locally, name, fmt, design)
     result.problems = check_report(result.report, fmt, brand)
     return result
 
@@ -104,9 +105,12 @@ async def _render_in_sandbox(backend: Any, name: str, fmt: str, design: str) -> 
     svg_path, png_path, report_path = f"{root}/designs/{name}.svg", f"{root}/out/{name}.png", f"{root}/out/{name}.report.json"
 
     await backend.aexecute(f"mkdir -p {studio} {root}/designs {root}/out")
+    script_bytes, brand_bytes = await asyncio.gather(
+        asyncio.to_thread(SCRIPT.read_bytes), asyncio.to_thread(BRAND_PATH.read_bytes),
+    )
     uploads = await backend.aupload_files([
-        (script, SCRIPT.read_bytes()),
-        (brand_path, BRAND_PATH.read_bytes()),
+        (script, script_bytes),
+        (brand_path, brand_bytes),
         (svg_path, design.encode()),
     ])
     errors = [u.error for u in uploads if getattr(u, "error", None)]
@@ -125,19 +129,27 @@ async def _render_in_sandbox(backend: Any, name: str, fmt: str, design: str) -> 
     return RenderResult(name, fmt, png_path, downloaded.content, report)
 
 
-async def _render_locally(name: str, fmt: str, design: str) -> RenderResult:
+def _render_locally(name: str, fmt: str, design: str) -> RenderResult:
     root = Path(output_root(None))
     for folder in ("designs", "out", ".studio/fonts"):
         (root / folder).mkdir(parents=True, exist_ok=True)
     svg_path, png_path = root / "designs" / f"{name}.svg", root / "out" / f"{name}.png"
     svg_path.write_text(design)
 
-    process = await asyncio.create_subprocess_exec(
-        sys.executable, str(SCRIPT), str(svg_path), str(png_path), str(BRAND_PATH), str(root / ".studio" / "fonts"),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+    process = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            str(svg_path),
+            str(png_path),
+            str(BRAND_PATH),
+            str(root / ".studio" / "fonts"),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
     )
-    stdout, _ = await process.communicate()
-    output = stdout.decode(errors="replace")
+    output = process.stdout.decode(errors="replace")
     if process.returncode:
         raise RuntimeError(f"Rendering failed:\n{output[-2000:]}")
     report = _parse_report(output)
@@ -148,13 +160,25 @@ async def _render_locally(name: str, fmt: str, design: str) -> RenderResult:
 async def read_design(backend: Any, name: str) -> tuple[bytes, dict[str, Any]]:
     """Read back a design that was already rendered."""
     check_name(name)
-    root = output_root(backend)
-    png_path, report_path = f"{root}/out/{name}.png", f"{root}/out/{name}.report.json"
     if is_sandbox(backend):
+        root = output_root(backend)
+        png_path, report_path = (
+            f"{root}/out/{name}.png",
+            f"{root}/out/{name}.report.json",
+        )
         png, report = await backend.adownload_files([png_path, report_path])
         if getattr(png, "error", None) or png.content is None:
             raise FileNotFoundError(f"No design named {name!r}. Render it first.")
         return png.content, json.loads(report.content or b"{}")
-    if not Path(png_path).exists():
+    return await asyncio.to_thread(_read_design_locally, name)
+
+
+def _read_design_locally(name: str) -> tuple[bytes, dict[str, Any]]:
+    root = Path(output_root(None))
+    png_path, report_path = (
+        root / "out" / f"{name}.png",
+        root / "out" / f"{name}.report.json",
+    )
+    if not png_path.exists():
         raise FileNotFoundError(f"No design named {name!r}. Render it first.")
-    return Path(png_path).read_bytes(), json.loads(Path(report_path).read_text())
+    return png_path.read_bytes(), json.loads(report_path.read_text())
