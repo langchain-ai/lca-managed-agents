@@ -1,6 +1,6 @@
 ---
 name: social-card
-description: Layout recipe for announcement and launch cards, event cards, and quote cards for social media. Use when someone asks for a card, post, or announcement graphic.
+description: Layout recipe for announcement, launch, and event cards for social media. Use when someone asks for a card, post, or announcement graphic.
 ---
 
 # Social Card

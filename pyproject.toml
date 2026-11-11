@@ -1,17 +1,10 @@
 [project]
 name = "design-studio"
 version = "0.1.0"
-description = "The starter repo for the Managed Agents course labs: build your own on-brand design agent."
+description = "An on-brand design agent built on Managed Deep Agents. The starter repo for the MDA course labs."
 requires-python = ">=3.11"
 dependencies = [
     "managed-deepagents>=0.10.1",
     "langchain-anthropic",
     "httpx",
-    # The renderer. It runs in your agent's process in Lab 1, and in the sandbox from Lab 2.
-    "resvg-py==0.5.0",
-    "pillow==13.0.0",
 ]
-
-[dependency-groups]
-# Lab 3: the Streamlit app runs on your machine or server, not in the deployment.
-frontend = ["streamlit", "langgraph-sdk"]

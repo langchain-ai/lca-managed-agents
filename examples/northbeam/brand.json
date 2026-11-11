@@ -1,6 +1,5 @@
 {
   "name": "Northbeam Coffee",
-  "tagline": "Small-batch coffee, roasted by the harbor.",
   "colors": {
     "primary": "#1F3A2E",
     "accent": "#E8B04B",
@@ -18,8 +17,5 @@
     "square": [1080, 1080],
     "story": [1080, 1920],
     "slide": [1920, 1080]
-  },
-  "rules": {
-    "min_contrast": 4.5
   }
 }

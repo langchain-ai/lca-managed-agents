@@ -1,16 +1,13 @@
 # agent.py
 #
 # Your design studio's agent. Each lab adds to this file: look for the TODOs.
-# Most of what it needs, like the tools and middleware, is already written.
-# Your job is to wire it in, plus write a skill and a tool of your own in Lab 1.
 from managed_deepagents import define_deep_agent
 
-# TODO (Lab 1): write view_design in tools/design.py, then import the three
-#               design tools,
-#               the brand_lint middleware from middleware/brand_lint.py,
-#               and CRITIC_PROMPT from prompts.py.
+# TODO (Lab 1): import get_brand from tools/brand.py (once you've written it),
+#               brand_lint from middleware/brand_lint.py,
+#               and publish_design from tools/slack_tools.py.
 # TODO (Lab 2): import get_weekly_metrics from tools/data.py.
-# TODO (Lab 3): import choose_concept from tools/concepts.py.
+# TODO (Lab 3): import choose_concept from tools/slack_tools.py.
 
 agent = define_deep_agent(
     name="design-studio",
